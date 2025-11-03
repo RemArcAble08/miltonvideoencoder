@@ -4,6 +4,7 @@ import time
 import tempfile
 import numpy as np
 import tensorflow as tf
+import shutil
 
 import os, subprocess, tempfile, numpy as np, joblib
 import tensorflow as tf
@@ -108,12 +109,44 @@ def rgb_1024_from_inception(rgb_2048, P_RGB):
     return x1024.astype(np.float32)
 
 def extract_audio_wav(input_video_path, target_sr=16000):
+    # Find an ffmpeg executable: system one if present, else imageio-ffmpeg’s bundled one
+    ffmpeg_path = shutil.which("ffmpeg")
+    if ffmpeg_path is None:
+        try:
+            import imageio_ffmpeg
+            ffmpeg_path = imageio_ffmpeg.get_ffmpeg_exe()
+        except Exception as e:
+            raise RuntimeError(
+                "FFmpeg not found. On Streamlit Cloud either add 'ffmpeg' to packages.txt "
+                "or keep 'imageio-ffmpeg' in requirements and ensure this fallback is used."
+            ) from e
+
+    with tempfile.NamedTemporaryFile(suffix=".wav", delete=False) as tmp:
+        wav_path = tmp.name
+
+    try:
+        cmd = [ffmpeg_path, "-y", "-i", input_video_path, "-ac", "1", "-ar", str(target_sr), wav_path]
+        # Capture output quietly; raise on failure
+        result = subprocess.run(cmd, stdout=subprocess.DEVNULL, stderr=subprocess.PIPE, check=False)
+        if result.returncode != 0 or not os.path.exists(wav_path):
+            raise RuntimeError(f"ffmpeg failed to extract audio: {result.stderr.decode(errors='ignore')[:500]}")
+
+        y, sr = librosa.load(wav_path, sr=target_sr, mono=True)
+        return y, sr
+    finally:
+        if os.path.exists(wav_path):
+            try:
+                os.remove(wav_path)
+            except OSError:
+                pass
+
+'''def extract_audio_wav(input_video_path, target_sr=16000):
     wav_path = tempfile.mktemp(suffix=".wav")
     cmd = ["ffmpeg", "-y", "-i", input_video_path, "-ac", "1", "-ar", str(target_sr), wav_path]
     subprocess.run(cmd, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL, check=True)
     y, sr = librosa.load(wav_path, sr=target_sr, mono=True)
     os.remove(wav_path)
-    return y, sr
+    return y, sr'''
 
 def logmel_feature(y, sr, n_mels=64, hop_length=160, n_fft=400):
     S = librosa.feature.melspectrogram(
