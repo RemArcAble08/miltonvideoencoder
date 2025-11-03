@@ -1,9 +1,20 @@
-streamlit>=1.36
-tensorflow>=2.13
-opencv-python-headless>=4.8
-librosa>=0.10
-soundfile>=0.12
-numpy>=1.24
-ffmpeg-python>=0.2.0
-imageio-ffmpeg>=0.4.9
-ffmpeg
+
+
+# App
+streamlit==1.38.0
+
+# ML stack (CPU only + compatible pins)
+tensorflow-cpu==2.15.0.post1
+numpy==1.26.4            # TF 2.15 is compatible with <=1.26.x
+opencv-python-headless==4.8.1.78
+
+# Audio/feature extras
+librosa==0.10.1
+soundfile==0.12.1
+numba==0.59.1            # stable with Py 3.11 and librosa 0.10.x
+
+# FFmpeg (Python-bundled & wrapper)
+imageio-ffmpeg==0.4.9
+ffmpeg-python==0.2.0     # optional; wrapper only
+
+# Avoid this: DO NOT include `ffmpeg` (PyPI) — it is not the system binary
